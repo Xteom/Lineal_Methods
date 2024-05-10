@@ -1,0 +1,89 @@
+---
+title: 'Análisis de Variable Instrumental en Homeless'
+author: "Mateo, Sebastián, Genaro"
+published_date: "31/01/2024"
+echo: true #código
+include: true #imprimir
+format: pdf
+editor: visual
+output:
+  pdf_document: 
+    latex_engine: xelatex
+editor_options:
+  chunk_output_type: console
+---
+```{r}
+library(tidyverse)
+```
+
+## Problema
+
+Bla bla bla. aquí va la hipótesis
+
+
+## Variables Instumentales
+
+En análisis estadístico, a menudo nos enfrentamos al problema de la endogeneidad, que ocurre cuando hay una correlación entre una variable explicativa $X$ y el término de error $U$. Este problema puede surgir debido a una variable omitida que afecta tanto a $X$ como a $Y$, generando estimaciones sesgadas en modelos de regresión lineal. Una alternativa que tenemos para abordar este problema es el uso de variables instrumentales.
+
+### Definición y supuestos
+
+Una variable $Z$ se considera instrumental si cumple con los siguientes supuestos:
+
+*Relevancia: $Z$ debe estar correlacionada con la variable explicativa $X$, pero no necesariamente con la variable dependiente $Y$
+(Que $Z$ tenga efecto sobre $Y$)
+
+$$
+cov( X_i, Z_i)\neq 0
+$$
+
+*Exogeneidad: $Z$ no debe estar correlacionada con el término de error $U$, garantizando que no está afectada por las variables omitidas que influyen en $Y$ ($Z$ no tenga efecto sobre la variable omitida)
+
+$$
+cov(U_i, Z_i) = 0
+$$
+
+*Restricción de Exclusión: $Z$ solo debe influir en $Y$ a través de $X$ y no a través de otros canales no observados ($Z$ no debe de tener efecto sobre $Y$ solo atravez de una variable observada)
+$$
+\text{No debe existir }cov(Y_i,Z_i) | X_i
+$$
+## Datos
+```{r}
+data <- read.csv("./metodos_lineales_data.csv")
+#data[is.na(data$Previous_CoC_Neighbor_Median_Rent), ]
+# los primeros periodos están en null por lo que para hacer la regresión filtramos
+data <- na.omit(data, cols = "Previous_CoC_Neighbor_Median_Rent")
+
+```
+`Year`: Año del registro. (2013 - 2022)
+`CoC_Number`: Identificador numérico del Continuum of Care (CoC).
+`CoC_Name`: Nombre descriptivo del CoC.
+`Overall_Homeless`: Cantidad total de personas sin hogar.
+`Chronic_Homeless`: Cantidad de personas sin hogar crónicamente.
+`Non-Chronic_Homeless`: Cantidad de personas sin hogar no crónicamente.
+`Actual_CoC_Median_Rent`: Renta media en el área del CoC.
+`Previous_CoC_Neighbor_Median_Rent`: Renta media en los CoCs vecinos.
+
+```{r}
+str(data)
+```
+```{r}
+summary(data)
+```
+
+## Análisis 
+
+### Primera etapa
+
+Realizamos la regresión sobre la variable endógena `Actual_CoC_Median_Rent` sobre la variable instrumental (IV) `Previous_CoC_Neighbor_Median_Rent`
+```{r}
+# Primera etapa: Regresión de la renta actual sobre la renta de los vecinos
+model_stage1 <- lm(Actual_CoC_Median_Rent ~ Previous_CoC_Neighbor_Median_Rent, data = data)
+
+data$Fitted_CoC_Median_Rent <- fitted(model_stage1)
+
+# Mostrar los primeros valores ajustados
+head(data$Fitted_CoC_Median_Rent)
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
