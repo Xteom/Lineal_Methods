@@ -191,9 +191,21 @@ model2 <- lm(Overall_Homeless ~ Actual_CoC_Median_Rent +
                Death_Rate + International_Migration_Rate + Domestic_Migration_Rate, 
              data = data)
 summary(model2)
-
 ```
 
+Regresión solo con variables significativas
+
+```{r}
+# Multiple linear regression with several predictors
+model3 <- lm(Overall_Homeless ~ Actual_CoC_Median_Rent +
+               CoC_AVG_Median_Household_Income + CoC_Population_Estimate + 
+               CoC_Civilian_Labor_Force +
+               Vote_Percentage + 
+               CoC_Poverty_Estimate_Age_0_17 + Birth_Rate + 
+               Death_Rate + International_Migration_Rate, 
+             data = data)
+summary(model3)
+```
 
 ### Variable Instrumental
 
@@ -221,19 +233,44 @@ pruebas placebo regresar controles y no debería haber efecto
 
 ```{r}
 # First Stage: Regress Actual_CoC_Median_Rent on Previous_CoC_Neighbor_Median_Rent and other exogenous variables
-first_stage_model <- lm(Actual_CoC_Median_Rent ~ Previous_CoC_Neighbor_Median_Rent + 
+first_stage_model2 <- lm(Actual_CoC_Median_Rent ~ Previous_CoC_Neighbor_Median_Rent + 
                         CoC_AVG_Median_Household_Income + CoC_Population_Estimate + 
-                        Poverty_Percentage + CoC_Civilian_Labor_Force + Unemployment_Rate + Vote_Percentage + 
-                        CoC_Poverty_Estimate_Age_0_17 + Birth_Rate + Death_Rate + International_Migration_Rate + 
-                        Domestic_Migration_Rate, data = data)
-data$fitted_Actual_CoC_Median_Rent <- fitted(first_stage_model)
+                        Poverty_Percentage + CoC_Civilian_Labor_Force + 
+                        Unemployment_Rate + Vote_Percentage + 
+                        CoC_Poverty_Estimate_Age_0_17 + Birth_Rate + Death_Rate + 
+                        International_Migration_Rate + Domestic_Migration_Rate, 
+                      data = data)
+data$fitted_Actual_CoC_Median_Rent2 <- fitted(first_stage_model2)
 
 # Second Stage: Regress Overall_Homeless on the fitted values from the first stage and other exogenous variables
-second_stage_model <- lm(Overall_Homeless ~ fitted_Actual_CoC_Median_Rent +
+second_stage_model2 <- lm(Overall_Homeless ~ fitted_Actual_CoC_Median_Rent2 +
                          CoC_AVG_Median_Household_Income + CoC_Population_Estimate + Poverty_Percentage + 
                          CoC_Civilian_Labor_Force + Unemployment_Rate + Vote_Percentage + CoC_Poverty_Estimate_Age_0_17 + 
                          Birth_Rate + Death_Rate + International_Migration_Rate + Domestic_Migration_Rate, data = data)
-summary(second_stage_model)
+summary(second_stage_model2)
+```
+
+Variables instrumental solo con significativos
+
+```{r}
+# First Stage: Regress Actual_CoC_Median_Rent on Previous_CoC_Neighbor_Median_Rent and other exogenous variables
+first_stage_model3 <- lm(Actual_CoC_Median_Rent ~ Previous_CoC_Neighbor_Median_Rent + 
+                        CoC_AVG_Median_Household_Income + CoC_Population_Estimate + 
+                        CoC_Civilian_Labor_Force + 
+                        Vote_Percentage + 
+                        CoC_Poverty_Estimate_Age_0_17 + Birth_Rate + Death_Rate + 
+                        International_Migration_Rate, 
+                      data = data)
+data$fitted_Actual_CoC_Median_Rent3 <- fitted(first_stage_model3)
+
+# Second Stage: Regress Overall_Homeless on the fitted values from the first stage and other exogenous variables
+second_stage_model3 <- lm(Overall_Homeless ~ fitted_Actual_CoC_Median_Rent3 +
+                         CoC_AVG_Median_Household_Income + CoC_Population_Estimate + 
+                         CoC_Civilian_Labor_Force + 
+                         Vote_Percentage + 
+                         CoC_Poverty_Estimate_Age_0_17 + Birth_Rate + Death_Rate + 
+                         International_Migration_Rate, data = data)
+summary(second_stage_model3)
 ```
 
 ```{r}
