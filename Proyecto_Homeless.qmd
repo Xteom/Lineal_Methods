@@ -14,11 +14,26 @@ editor_options:
 ---
 
 ```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      comment = NULL, 
+                      fig.width=12, 
+                      fig.height=8, 
+                      fig.align = "center")
+options(width = 160)
+options(digits = 3)
+
 #install.packages(c("lmtest", "AER"))
 library(tidyverse)
 library(stats)
 library(lmtest)
 library(AER) #applied econometris
+library(GGally)
+library(dplyr)
+library(ggcorrplot)
+library(ggplot2)
+library(gridExtra)
+library(corrplot)
+library(MASS)
 
 ```
 
@@ -48,9 +63,11 @@ $$
 cov(U_i, Z_i) = 0
 $$
 
--   Restricción de Exclusión: $Z$ solo debe influir en $Y$ a través de $X$ y no debe tener ningún efecto directo o a través de otros canales no observados. Esta condición es crucial para asegurar que la relación causal que medimos es exclusivamente a través de $X$: $$
-      cov(Y_i,Z_i | X_i)=0
-      $$
+-   Restricción de Exclusión: $Z$ solo debe influir en $Y$ a través de $X$ y no debe tener ningún efecto directo o a través de otros canales no observados. Esta condición es crucial para asegurar que la relación causal que medimos es exclusivamente a través de $X$: 
+
+$$
+cov(Y_i,Z_i | X_i)=0
+$$
 
 ## Datos
 
@@ -104,13 +121,11 @@ summary(lm(Overall_Homeless ~ Previous_CoC_Neighbor_Median_Rent, data = data))
 
 -   `Domestic_Migration_Rate`: Tasa de migración doméstica dentro del país en el área del CoC.
 
-
 Agregamos una varibale dummy llamada `Party_Democrat`
 
 ```{r}
 data$Party_Democrat <- as.integer(data$Party_Affiliation == 'Democrat')
 ```
-
 
 ```{r}
 str(data)
@@ -118,6 +133,43 @@ str(data)
 
 ```{r}
 summary(data)
+```
+
+```{r fig.asp = T, echo=FALSE}
+# Function to insert line breaks into column names
+insert_line_breaks <- function(name, width = 15) {
+  sapply(strsplit(name, "(?<=.{15})", perl = TRUE), paste, collapse = "\n")
+}
+
+aux <- data
+
+# Apply the function to the column names
+new_column_names <- sapply(colnames(aux), insert_line_breaks)
+
+# Rename the columns in the data
+colnames(aux) <- new_column_names
+
+# Generate the correlation matrix
+correlation_matrix <- cor(aux %>% select_if(is.numeric))
+
+# Plot the correlation matrix with improved readability
+# Plot the correlation matrix with improved readability
+p <- ggcorrplot::ggcorrplot(correlation_matrix, method = "circle", type = "upper", lab = FALSE, 
+                            title = "Correlation Matrix", ggtheme = ggplot2::theme_minimal()) +
+     theme(
+       axis.text.x = element_text(size = 12, angle = 45, hjust = 1),  # Adjust x-axis text size and angle
+       axis.text.y = element_text(size = 12),  # Adjust y-axis text size
+       plot.title = element_text(size = 20, face = "bold")  # Adjust title size and style
+     )
+
+# Display the plot
+print(p)
+```
+
+```{r}
+correlation_matrix <- cor(data %>% select_if(is.numeric))
+R <- round(correlation_matrix, 3)
+corrplot(correlation_matrix, method = "ellipse")
 ```
 
 ## Análisis
@@ -129,19 +181,151 @@ summary(model)
 
 R cuadrada bajo por lo que teníamos razón diciendo que hay más cosas afectando a los homeless aparte de la renta. (?)
 
-### Variable Instrumental
-
 ```{r}
-iv_model <- ivreg(Overall_Homeless ~ Actual_CoC_Median_Rent | 
-                    Previous_CoC_Neighbor_Median_Rent, data = data)
+# Multiple linear regression with several predictors
+model2 <- lm(Overall_Homeless ~ Actual_CoC_Median_Rent +
+               CoC_AVG_Median_Household_Income + CoC_Population_Estimate + 
+               Poverty_Percentage + CoC_Civilian_Labor_Force +
+               Unemployment_Rate + Vote_Percentage + 
+               CoC_Poverty_Estimate_Age_0_17 + Birth_Rate + 
+               Death_Rate + International_Migration_Rate + Domestic_Migration_Rate, 
+             data = data)
+summary(model2)
 
-summary(iv_model)
 ```
 
 
+### Variable Instrumental
 
-de aquí pa abajo creo que no lo pelen por ahora
+```{r}
+# First Stage: Regress Actual_CoC_Median_Rent on Previous_CoC_Neighbor_Median_Rent and other exogenous variables
+first_stage_model <- lm(Actual_CoC_Median_Rent ~ Previous_CoC_Neighbor_Median_Rent, 
+                        data = data)
+data$fitted_Actual_CoC_Median_Rent <- fitted(first_stage_model)
+
+# Second Stage: Regress Overall_Homeless on the fitted values from the first stage and other exogenous variables
+second_stage_model <- lm(Overall_Homeless ~ fitted_Actual_CoC_Median_Rent, 
+                         data = data)
+summary(second_stage_model)
+```
+
+Los errores estandar están mal pero las betas son correctas, la U del modelo es diferente que la U de la étapa en la segunda etapa estoy utilizando la renta actual predicha entonces tiene otro error sumado
+
+me fijo más en como son las betas para ver el efecto sobre los homeless  
+bartik instruments. problemas en probar exogeneidad
+restricción de exclución. problema por que la periferia influye 
+
+si instrumento es exogeno, controles no deberían afectar
+controles deben pasar una prueba de balance, 
+pruebas placebo regresar controles y no debería haber efecto 
+
+```{r}
+# First Stage: Regress Actual_CoC_Median_Rent on Previous_CoC_Neighbor_Median_Rent and other exogenous variables
+first_stage_model <- lm(Actual_CoC_Median_Rent ~ Previous_CoC_Neighbor_Median_Rent + 
+                        CoC_AVG_Median_Household_Income + CoC_Population_Estimate + 
+                        Poverty_Percentage + CoC_Civilian_Labor_Force + Unemployment_Rate + Vote_Percentage + 
+                        CoC_Poverty_Estimate_Age_0_17 + Birth_Rate + Death_Rate + International_Migration_Rate + 
+                        Domestic_Migration_Rate, data = data)
+data$fitted_Actual_CoC_Median_Rent <- fitted(first_stage_model)
+
+# Second Stage: Regress Overall_Homeless on the fitted values from the first stage and other exogenous variables
+second_stage_model <- lm(Overall_Homeless ~ fitted_Actual_CoC_Median_Rent +
+                         CoC_AVG_Median_Household_Income + CoC_Population_Estimate + Poverty_Percentage + 
+                         CoC_Civilian_Labor_Force + Unemployment_Rate + Vote_Percentage + CoC_Poverty_Estimate_Age_0_17 + 
+                         Birth_Rate + Death_Rate + International_Migration_Rate + Domestic_Migration_Rate, data = data)
+summary(second_stage_model)
+```
+
+```{r}
+#ivreg()
+```
+
+
+### Regresión Poisson
+
+
+### Stepwise prediction 
+
+```{r}
+# Define the initial model with all variables except Chronic_Homeless and Non-Chronic_Homeless
+full_model <- lm(Overall_Homeless ~ Actual_CoC_Median_Rent + CoC_AVG_Median_Household_Income +
+                 CoC_Population_Estimate + Poverty_Percentage + CoC_Civilian_Labor_Force +
+                 Unemployment_Rate + Vote_Percentage + CoC_Poverty_Estimate_Age_0_17 +
+                 Birth_Rate + Death_Rate + International_Migration_Rate + Domestic_Migration_Rate, 
+                 data = data)
+
+# Perform stepwise regression using AIC as the criterion
+stepwise_model <- stepAIC(full_model, direction = "both")
+
+# Print the summary of the final model
+summary(stepwise_model)
+```
+
 ----
+de aquí pa abajo creo que no lo pelen por ahora
+```{r}
+colnames(data)
+```
+
+
+```{r}
+
+# Define the predictor variables
+predictors <- data %>%
+  dplyr::select(Actual_CoC_Median_Rent,
+         Previous_CoC_Neighbor_Median_Rent, CoC_AVG_Median_Household_Income,
+         CoC_Population_Estimate, Poverty_Percentage, CoC_Civilian_Labor_Force,
+         Unemployment_Rate, Vote_Percentage, CoC_Poverty_Estimate_Age_0_17,
+         Birth_Rate, Death_Rate, International_Migration_Rate, Domestic_Migration_Rate)
+# Standardize the predictor variables
+predictors_standardized <- scale(predictors)
+
+# Perform PCA
+pca <- prcomp(predictors_standardized, scale. = TRUE)
+summary(pca)
+
+# Determine the number of components to keep
+explained_variance_ratio <- summary(pca)$importance[2,]
+cumulative_variance_ratio <- cumsum(explained_variance_ratio)
+
+plot(cumulative_variance_ratio, type = "b", pch = 19, xlab = "Number of Components", 
+     ylab = "Cumulative Explained Variance", main = "Explained Variance by Principal Components")
+
+# Select a sufficient number of components (e.g., those that explain at least 95% of the variance)
+n_components <- which(cumulative_variance_ratio >= 0.95)[1]
+principal_components_selected <- pca$x[, 1:n_components]
+
+# Create a data frame for the selected principal components
+principal_components_df <- data.frame(principal_components_selected)
+colnames(principal_components_df) <- paste0('PC', 1:n_components)
+
+# Add the response variable to the data frame
+principal_components_df$Overall_Homeless <- data$Overall_Homeless
+
+# Perform regression using the principal components as predictors
+pca_model <- lm(Overall_Homeless ~ ., data = principal_components_df)
+summary(pca_model)
+
+# Extract all principal components for prediction
+plot_data <- principal_components_df
+
+# Predict values for plotting the regression line
+plot_data$Predicted_Homeless <- predict(pca_model, newdata = plot_data)
+
+# Create a data frame for plotting the first two principal components
+plot_data_pca <- data.frame(PC1 = principal_components_selected[, 1], 
+                            PC2 = principal_components_selected[, 2], 
+                            Overall_Homeless = data$Overall_Homeless, 
+                            Predicted_Homeless = plot_data$Predicted_Homeless)
+
+# Plot the first two principal components with the regression line
+ggplot(plot_data_pca, aes(x = PC1, y = PC2)) +
+  geom_point(aes(color = Overall_Homeless), alpha = 0.6) +
+  geom_smooth(aes(y = Predicted_Homeless), method = "lm", color = "blue", size = 1) +
+  labs(title = "Regression Line on First Two Principal Components",
+       x = "Principal Component 1", y = "Principal Component 2") +
+  theme_minimal()
+```
 
 
 #### Primera etapa
@@ -157,4 +341,3 @@ data$Fitted_CoC_Median_Rent <- fitted(model_stage1)
 head(data$Fitted_CoC_Median_Rent)
 
 ```
-
