@@ -12,78 +12,149 @@ output:
 editor_options:
   chunk_output_type: console
 ---
-```{r}
+
+```{r, include=FALSE}
+#install.packages(c("lmtest", "AER"))
 library(tidyverse)
+library(stats)
+library(lmtest)
+library(AER) #applied econometris
+
 ```
 
 ## Problema
 
-Bla bla bla. aquí va la hipótesis
+En numerosos condados a lo largo de Estados Unidos, el incremento en los costos de vivienda ha sido una preocupación creciente, no solo por su impacto directo en la asequibilidad de la vivienda, sino también por sus posibles efectos en el aumento de la población sin hogar. Identificar las dinámicas precisas entre estos factores es crucial para desarrollar políticas efectivas de vivienda y programas de asistencia social. Sin embargo, la relación entre el costo de la vivienda y el número de personas sin hogar es compleja y puede estar confundida por variables omitidas, como el desempleo o las políticas locales, lo que dificulta obtener estimaciones causales claras.
 
+Nuestra hipótesis plantea que el costo promedio de renta en un condado tiene un impacto significativo en la cantidad de personas sin hogar en ese mismo condado. Para explorar esta relación de manera más precisa y controlar la posible endogeneidad de la variable de costo de vivienda, utilizamos el costo promedio de renta de los condados colindantes en el periodo de medida anterior como variable instrumental. Esperamos demostrar que, al aislar la influencia de otros factores, un aumento en el costo de la renta contribuye directamente al incremento en el número de personas sin hogar, proporcionando así evidencia que podría ser utilizada para guiar intervenciones y políticas públicas efectivas.
 
-## Variables Instumentales
+## Variables Instrumentales
 
-En análisis estadístico, a menudo nos enfrentamos al problema de la endogeneidad, que ocurre cuando hay una correlación entre una variable explicativa $X$ y el término de error $U$. Este problema puede surgir debido a una variable omitida que afecta tanto a $X$ como a $Y$, generando estimaciones sesgadas en modelos de regresión lineal. Una alternativa que tenemos para abordar este problema es el uso de variables instrumentales.
+En análisis estadístico, a menudo nos enfrentamos al problema de la endogeneidad, que ocurre cuando hay una correlación entre una variable explicativa $X$ y el término de error $U$. Esta correlación puede surgir de una variable omitida que influye simultáneamente en $X$, y en la variable dependiente $Y$, generando estimaciones sesgadas y conclusiones erróneas en modelos de regresión lineal. Para abordar esta complicación, uno de los enfoques más efectivos es el uso de variables instrumentales. Este método nos permite aislar el efecto verdadero de $X$ sobre $Y$, proporcionando una estimación más precisa de la relación causal.
 
 ### Definición y supuestos
 
 Una variable $Z$ se considera instrumental si cumple con los siguientes supuestos:
 
-*Relevancia: $Z$ debe estar correlacionada con la variable explicativa $X$, pero no necesariamente con la variable dependiente $Y$
-(Que $Z$ tenga efecto sobre $Y$)
+-   Relevancia: $Z$ debe estar correlacionada con la variable explicativa $X$, pero no necesariamente con la variable dependiente $Y$ (Que $Z$ tenga efecto sobre $Y$). Esto se verifica a través de la condición:
 
 $$
 cov( X_i, Z_i)\neq 0
 $$
 
-*Exogeneidad: $Z$ no debe estar correlacionada con el término de error $U$, garantizando que no está afectada por las variables omitidas que influyen en $Y$ ($Z$ no tenga efecto sobre la variable omitida)
+-   Exogeneidad: $Z$ no debe estar correlacionada con el término de error $U$, garantizando que no está afectada por las variables omitidas que influyen en $Y$. Esto asegura que los efectos estimados no están sesgados por variables no observadas:
 
 $$
 cov(U_i, Z_i) = 0
 $$
 
-*Restricción de Exclusión: $Z$ solo debe influir en $Y$ a través de $X$ y no a través de otros canales no observados ($Z$ no debe de tener efecto sobre $Y$ solo atravez de una variable observada)
-$$
-\text{No debe existir }cov(Y_i,Z_i) | X_i
-$$
+-   Restricción de Exclusión: $Z$ solo debe influir en $Y$ a través de $X$ y no debe tener ningún efecto directo o a través de otros canales no observados. Esta condición es crucial para asegurar que la relación causal que medimos es exclusivamente a través de $X$: $$
+      cov(Y_i,Z_i | X_i)=0
+      $$
+
 ## Datos
+
 ```{r}
 data <- read.csv("./metodos_lineales_data.csv")
 #data[is.na(data$Previous_CoC_Neighbor_Median_Rent), ]
 # los primeros periodos están en null por lo que para hacer la regresión filtramos
 data <- na.omit(data, cols = "Previous_CoC_Neighbor_Median_Rent")
-
+summary(lm(Overall_Homeless ~ Previous_CoC_Neighbor_Median_Rent, data = data))
 ```
-`Year`: Año del registro. (2013 - 2022)
-`CoC_Number`: Identificador numérico del Continuum of Care (CoC).
-`CoC_Name`: Nombre descriptivo del CoC.
-`Overall_Homeless`: Cantidad total de personas sin hogar.
-`Chronic_Homeless`: Cantidad de personas sin hogar crónicamente.
-`Non-Chronic_Homeless`: Cantidad de personas sin hogar no crónicamente.
-`Actual_CoC_Median_Rent`: Renta media en el área del CoC.
-`Previous_CoC_Neighbor_Median_Rent`: Renta media en los CoCs vecinos.
+
+-   `Year`: Año del registro. (2013 - 2022)
+
+-   `CoC_Number`: Identificador numérico del Continuum of Care (CoC).
+
+-   `CoC_Name`: Nombre descriptivo del CoC.
+
+-   `Overall_Homeless`: Cantidad total de personas sin hogar.
+
+-   `Chronic_Homeless`: Cantidad de personas sin hogar crónicamente.
+
+-   `Non-Chronic_Homeless`: Cantidad de personas sin hogar no crónicamente.
+
+-   `Actual_CoC_Median_Rent`: Renta media en el área del CoC.
+
+-   `Previous_CoC_Neighbor_Median_Rent`: Renta media en los CoCs vecinos.
+
+-   `State`: Estado en EE.UU. donde se encuentra el Continuum of Care (CoC).
+
+-   `CoC_AVG_Median_Household_Income`: Ingreso medio del hogar promedio en el área del CoC.
+
+-   `CoC_Population_Estimate`: Estimación de la población total en el área del CoC.
+
+-   `Poverty_Percentage`: Porcentaje de la población bajo el umbral de pobreza en el área del CoC.
+
+-   `CoC_Civilian_Labor_Force`: Tamaño de la fuerza laboral civil en el área del CoC.
+
+-   `Unemployment_Rate`: Tasa de desempleo en el área del CoC.
+
+-   `Party_Affiliation`: Afiliación política predominante en el área del CoC.
+
+-   `Vote_Percentage`: Porcentaje de votos obtenidos por el partido predominante en las últimas elecciones.
+
+-   `CoC_Poverty_Estimate_Age_0_17`: Estimación del número de menores de 18 años en situación de pobreza en el área del CoC.
+
+-   `Birth_Rate`: Tasa de natalidad en el área del CoC.
+
+-   `Death_Rate`: Tasa de mortalidad en el área del CoC.
+
+-   `International_Migration_Rate`: Tasa de migración internacional en el área del CoC.
+
+-   `Domestic_Migration_Rate`: Tasa de migración doméstica dentro del país en el área del CoC.
+
+
+Agregamos una varibale dummy llamada `Party_Democrat`
+
+```{r}
+data$Party_Democrat <- as.integer(data$Party_Affiliation == 'Democrat')
+```
+
 
 ```{r}
 str(data)
 ```
+
 ```{r}
 summary(data)
 ```
 
-## Análisis 
+## Análisis
 
-### Primera etapa
+```{r}
+model <- lm(Overall_Homeless ~ Actual_CoC_Median_Rent, data = data)
+summary(model)
+```
+
+R cuadrada bajo por lo que teníamos razón diciendo que hay más cosas afectando a los homeless aparte de la renta. (?)
+
+### Variable Instrumental
+
+```{r}
+iv_model <- ivreg(Overall_Homeless ~ Actual_CoC_Median_Rent | 
+                    Previous_CoC_Neighbor_Median_Rent, data = data)
+
+summary(iv_model)
+```
+
+
+
+de aquí pa abajo creo que no lo pelen por ahora
+----
+
+
+#### Primera etapa
 
 Realizamos la regresión sobre la variable endógena `Actual_CoC_Median_Rent` sobre la variable instrumental (IV) `Previous_CoC_Neighbor_Median_Rent`
+
 ```{r}
 # Primera etapa: Regresión de la renta actual sobre la renta de los vecinos
 model_stage1 <- lm(Actual_CoC_Median_Rent ~ Previous_CoC_Neighbor_Median_Rent, data = data)
 
 data$Fitted_CoC_Median_Rent <- fitted(model_stage1)
 
-# Mostrar los primeros valores ajustados
 head(data$Fitted_CoC_Median_Rent)
 
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
