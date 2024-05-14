@@ -63,7 +63,7 @@ $$
 cov(U_i, Z_i) = 0
 $$
 
--   Restricción de Exclusión: $Z$ solo debe influir en $Y$ a través de $X$ y no debe tener ningún efecto directo o a través de otros canales no observados. Esta condición es crucial para asegurar que la relación causal que medimos es exclusivamente a través de $X$: 
+-   Restricción de Exclusión: $Z$ solo debe influir en $Y$ a través de $X$ y no debe tener ningún efecto directo o a través de otros canales no observados. Esta condición es crucial para asegurar que la relación causal que medimos es exclusivamente a través de $X$:
 
 $$
 cov(Y_i,Z_i | X_i)=0
@@ -135,12 +135,10 @@ str(data)
 summary(data)
 ```
 
-
 ```{r}
 correlation_matrix <- cor(data %>% select_if(is.numeric))
 corrplot(correlation_matrix, method = "ellipse")
 ```
-
 
 ## Análisis
 
@@ -169,9 +167,10 @@ ggplot(data = data, aes(x = Actual_CoC_Median_Rent, y = Overall_Homeless)) +
        color = "Año",
        caption = "Datos a nivel CoC, por año (2013-2022).")
 ```
-* Puntos en color para representar diferentes años. Podemos observar que la renta es mayor en los años más recientes.
-* Línea de tendencia sugiere una correlación positiva entre la renta media y la cantidad de personas sin hogar.
-* Por la escala logaritmica, las diferencias visuales son más pronunciadas y la intensidad de la tendencia puede verse afectada, pero existe relación.
+
+-   Puntos en color para representar diferentes años. Podemos observar que la renta es mayor en los años más recientes.
+-   Línea de tendencia sugiere una correlación positiva entre la renta media y la cantidad de personas sin hogar.
+-   Por la escala logaritmica, las diferencias visuales son más pronunciadas y la intensidad de la tendencia puede verse afectada, pero existe relación.
 
 2.  Regresión con todas las variables
 
@@ -206,6 +205,7 @@ summary(model3)
 Al ajustar el modelo solo con variables que mostraron significancia estadística, se mantiene un alto R-cuadrado de 0.539, lo que indica que las variables seleccionadas retienen su capacidad explicativa sin la carga de variables no significativas. El coeficiente para el costo de renta ajustada muestra un impacto de 5.25 personas sin hogar por cada aumento de \$1 en la renta, subrayando la persistente influencia significativa del costo de vivienda (`p < 2e-16`). La precisión del modelo, reflejada por un error estándar residual de 3310, y su ajuste mejorado resaltan la relevancia de estas variables en estudios de falta de vivienda.
 
 ### Variable Instrumental
+
 4.  Regresión simple
 
 ```{r}
@@ -270,10 +270,11 @@ summary(second_stage_model3)
 
 Este modelo optimiza el análisis al centrarse en variables significativas junto con la renta ajustada como variable instrumental. El coeficiente de `fitted_Actual_CoC_Median_Rent3` de 5.41 sugiere un vínculo robusto y significativo entre el costo de la vivienda y el número de personas sin hogar (`p < 2e-16`). El modelo mantiene un R-cuadrado importante de 0.524, demostrando que, a pesar de la simplificación, las variables seleccionadas explican una proporción considerable de la variabilidad en la falta de vivienda. La persistencia de la significancia estadística en las variables clave enfatiza su relevancia para entender y abordar la falta de vivienda. Aunque el análisis de errores estándar podría ser necesario para asegurar la precisión de las estimaciones, la consistencia en los resultados subraya la fiabilidad de las conclusiones.
 
-### Regresión Poisson
+### GLMs
+
+#### Modelo Poisson
 
 Ya que 'Overall_Homeless' es un conteo de personas sin hogar, suena sensato modelar esta variable con una regresión Poisson. Para ello, ajustamos un Modelo Lineal Generalizado.
-
 
 ```{r}
 poisson_model <- glm(Overall_Homeless ~ Actual_CoC_Median_Rent + 
@@ -285,14 +286,15 @@ poisson_model <- glm(Overall_Homeless ~ Actual_CoC_Median_Rent +
 summary(poisson_model)
 ```
 
-* El coeficiente de la variable Actual_CoC_Median_Rent nos dice que existe una relación positiva con la variable objetivo. Por cada dolar de incremento, el logaritmo del número esperado de personas sin hogar aumenta 0.00143.
-* Contrario a las suposiciones previas, el coeficiente negativo de Previous_CoC_Neighbor_Median_Rent indica que al aumentar la renta mediana de los vecinos en el periodo anterior, disminuye el número de personas sin hogar. También hay que hacer notar que el valor del estimador es bastante bajo.
-* Podemos notar que las únicas variables que tienen una relación negativa con la objetivo es Previous_CoC_Neighbor_Median_Rent y CoC_AVG_Median_Household_Income.
-* Todos los coeficientes son estadísticamente significativos (p < 0.001), e indican (la mayoría) que son distintos de cero en la población. Así, tienen un efecto sobre nuestra variable dependiente.
-* El resutlado de Residual deviance nos interesa que sea cercana a cero. Muestra la desviación del modelo con todas las variables. Al ser demasiado grande nos genera dudas, pues la diferencia nos indica que el modelo sí puede explciar una parte de la variabilidad en los homeless, pero para nada es perfecta.
-* De la misma manera, nuestro Criterio de Akaike está muy elevado. Esto nos hace levantar sospechas.
+-   El coeficiente de la variable Actual_CoC_Median_Rent nos dice que existe una relación positiva con la variable objetivo. Por cada dolar de incremento, el logaritmo del número esperado de personas sin hogar aumenta 0.00143.
+-   Contrario a las suposiciones previas, el coeficiente negativo de Previous_CoC_Neighbor_Median_Rent indica que al aumentar la renta mediana de los vecinos en el periodo anterior, disminuye el número de personas sin hogar. También hay que hacer notar que el valor del estimador es bastante bajo.
+-   Podemos notar que las únicas variables que tienen una relación negativa con la objetivo es Previous_CoC_Neighbor_Median_Rent y CoC_AVG_Median_Household_Income.
+-   Todos los coeficientes son estadísticamente significativos (p \< 0.001), e indican (la mayoría) que son distintos de cero en la población. Así, tienen un efecto sobre nuestra variable dependiente.
+-   El resutlado de Residual deviance nos interesa que sea cercana a cero. Muestra la desviación del modelo con todas las variables. Al ser demasiado grande nos genera dudas, pues la diferencia nos indica que el modelo sí puede explciar una parte de la variabilidad en los homeless, pero para nada es perfecta.
+-   De la misma manera, nuestro Criterio de Akaike está muy elevado. Esto nos hace levantar sospechas.
 
-#### Cálculo de la Devianza
+*Cálculo de la Devianza*
+
 ```{r}
 # Cálculo de la Devianza
 deviance_null <- poisson_model$null.deviance
@@ -303,12 +305,11 @@ deviance_r2 <- 1 - (deviance_model / deviance_null)
 cat("Deviance R²: ", deviance_r2, "\n")
 ```
 
-* El valor de la Devianza la utilizamos para evaluar la calidad de ajuste de nuestro modelo de regresión. 
-* El valor sugiere que el modelo explica aprox el 79.51% de la variabilidad en los conteos. Suena bastante bien; ajusta de manera buena a los datos. 
-* Pero se nos olvidó comprobar una cosa.
-* Calculamos la media y la varianza para buscar la llamada "sobredisposición".
-* La sobredisposición es cuando la varianza de los datos es mayor que la media.
-
+-   El valor de la Devianza la utilizamos para evaluar la calidad de ajuste de nuestro modelo de regresión.
+-   El valor sugiere que el modelo explica aprox el 79.51% de la variabilidad en los conteos. Suena bastante bien; ajusta de manera buena a los datos.
+-   Pero se nos olvidó comprobar una cosa.
+-   Calculamos la media y la varianza para buscar la llamada "sobredisposición".
+-   La sobredisposición es cuando la varianza de los datos es mayor que la media.
 
 ```{r}
 mean_response <- mean(data$Overall_Homeless)
@@ -330,9 +331,40 @@ dispersion_test
 
 ```
 
-* Al tener una varianza abismalmente mayor que la media, entraríamos en el problema de contradecir la suposición principal de la utilización de un modelo Poisson: que la media y la varianza son iguales.
-* El test de sobredispersión confirma nuestro error. El valor cercano a 1 indica que la varianza es igual a la media. Dado que la nuestra es de 779, claramente observamos que la media y la varianza no son iguales.
-* Así, el modelo Poisson no es el adecuado para el análisis de estos datos, pues podemos subestimar los errores de los estimadores. 
-* Tal vez por eso sonaban sospechosas los resultados previos.
+-   Al tener una varianza abismalmente mayor que la media, entraríamos en el problema de contradecir la suposición principal de la utilización de un modelo Poisson: que la media y la varianza son iguales.
+-   El test de sobredispersión confirma nuestro error. El valor cercano a 1 indica que la varianza es igual a la media. Dado que la nuestra es de 779, claramente observamos que la media y la varianza no son iguales.
+-   Así, el modelo Poisson no es el adecuado para el análisis de estos datos, pues podemos subestimar los errores de los estimadores.
+-   Tal vez por eso sonaban sospechosas los resultados previos.
+
+#### Modelo Binomial
+
+-   Este modelo también es utilizado para datos que representan conteos (entre otras cosas). Este modelo permite que la varianza sea mayor que la media, por lo que resulta ser un modelo más flexible.
+-   Además, es recomendado cuando los datos presentan la sobredisposición.
+-   La función de enlace que utiliza también es la logarítmica.
+
+```{r}
+nb_model <- glm.nb(Overall_Homeless ~ Actual_CoC_Median_Rent + Previous_CoC_Neighbor_Median_Rent +
+                   CoC_AVG_Median_Household_Income + CoC_Population_Estimate +
+                   Poverty_Percentage + Unemployment_Rate + Party_Democrat +
+                   International_Migration_Rate + Domestic_Migration_Rate,
+                   data = data)
+
+summary(nb_model)
+```
+
+*Cálculo de la Devianza*
+
+```{r}
+# Cálculo de la Devianza
+deviance_null <- nb_model$null.deviance
+deviance_model <- nb_model$deviance
+deviance_r2 <- 1 - (deviance_model / deviance_null)
+
+# Imprimir resultados
+cat("Deviance R²: ", deviance_r2, "\n")
+```
 
 
+-   De entrada, podemos observar que todas las betas de las variables resultan ser significativas, por lo que sí tienen un efecto en el conteo de homeless (o eso podemos creer).
+-   Para este modelo, podemos observar que la única variable que tiene un efecto negativo es CoC_AVG_Median_Household_Income.
+-   La Devianza Nula nos dice cuánta variabilidad existe sin ningún predictor. La Devianza Residual nos dice cuánta variabilidad existe después de incluir los predictores. Podemos notar que disminuye el valor de la Devianza Residual. Esta reducción nos puede decir que el modelo puede explicar bien parte de los datos. Este valor de AIC (51,894) es mucho menor al obtenido con la regresión Poisson (2,315,325). Esto nos indica que el modelo utilizando una Binomial Negativa es mejor que el modelo Poisson que corrimos anteriormente.
