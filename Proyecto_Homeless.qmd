@@ -331,6 +331,7 @@ dispersion_test
 ```
 
 * Al tener una varianza abismalmente mayor que la media, entraríamos en el problema de contradecir la suposición principal de la utilización de un modelo Poisson: que la media y la varianza son iguales.
+* El test de sobredispersión confirma nuestro error. El valor cercano a 1 indica que la varianza es igual a la media. Dado que la nuestra es de 779, claramente observamos que la media y la varianza no son iguales.
 * Así, el modelo Poisson no es el adecuado para el análisis de estos datos, pues podemos subestimar los errores de los estimadores. 
 * Tal vez por eso sonaban sospechosas los resultados previos.
 
