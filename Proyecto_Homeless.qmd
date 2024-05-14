@@ -306,11 +306,11 @@ cat("Deviance R²: ", deviance_r2, "\n")
 * El valor de la Devianza la utilizamos para evaluar la calidad de ajuste de nuestro modelo de regresión. 
 * El valor sugiere que el modelo explica aprox el 79.51% de la variabilidad en los conteos. Suena bastante bien; ajusta de manera buena a los datos. 
 * Pero se nos olvidó comprobar una cosa.
+* Calculamos la media y la varianza para buscar la llamada "sobredisposición".
+* La sobredisposición es cuando la varianza de los datos es mayor que la media.
+
 
 ```{r}
-# Calculamos la media y la varianza para buscar la llamada "sobredisposición".
-# La sobredisposición es cuando la varianza de los datos es mayor que la media.
-
 mean_response <- mean(data$Overall_Homeless)
 variance_response <- var(data$Overall_Homeless)
 
@@ -318,8 +318,20 @@ cat("Media de Total de Homeless: ",mean_response)
 cat("\nVarianza de Total de Homeless: ",variance_response)
 ```
 
+```{r}
+# Calcular la estadística de dispersión
+dispersion_stat <- sum(resid(poisson_model, type = "pearson")^2) / poisson_model$df.residual
+cat("\nEstadística de dispersión: ",dispersion_stat)
+
+# Test de sobredispersión
+dispersion_test <- dispersiontest(poisson_model, trafo = 1)
+cat("\n\nPrueba de sobredisposición:\n")
+dispersion_test
+
+```
+
 * Al tener una varianza abismalmente mayor que la media, entraríamos en el problema de contradecir la suposición principal de la utilización de un modelo Poisson: que la media y la varianza son iguales.
 * Así, el modelo Poisson no es el adecuado para el análisis de estos datos, pues podemos subestimar los errores de los estimadores. 
-* Tal vez por eso sonaban sospechosas los resultados previos.
+* Tal vez por eso sonaban sospechosas los resultados previos.
 
 
