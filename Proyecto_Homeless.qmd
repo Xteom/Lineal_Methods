@@ -135,51 +135,45 @@ str(data)
 summary(data)
 ```
 
-```{r fig.asp = T, echo=FALSE}
-# Function to insert line breaks into column names
-insert_line_breaks <- function(name, width = 15) {
-  sapply(strsplit(name, "(?<=.{15})", perl = TRUE), paste, collapse = "\n")
-}
-
-aux <- data
-
-# Apply the function to the column names
-new_column_names <- sapply(colnames(aux), insert_line_breaks)
-
-# Rename the columns in the data
-colnames(aux) <- new_column_names
-
-# Generate the correlation matrix
-correlation_matrix <- cor(aux %>% select_if(is.numeric))
-
-# Plot the correlation matrix with improved readability
-# Plot the correlation matrix with improved readability
-p <- ggcorrplot::ggcorrplot(correlation_matrix, method = "circle", type = "upper", lab = FALSE, 
-                            title = "Correlation Matrix", ggtheme = ggplot2::theme_minimal()) +
-     theme(
-       axis.text.x = element_text(size = 12, angle = 45, hjust = 1),  # Adjust x-axis text size and angle
-       axis.text.y = element_text(size = 12),  # Adjust y-axis text size
-       plot.title = element_text(size = 20, face = "bold")  # Adjust title size and style
-     )
-
-# Display the plot
-print(p)
-```
 
 ```{r}
 correlation_matrix <- cor(data %>% select_if(is.numeric))
-R <- round(correlation_matrix, 3)
 corrplot(correlation_matrix, method = "ellipse")
 ```
 
+
 ## Análisis
+
+1.  Regresión simple
 
 ```{r}
 model <- lm(Overall_Homeless ~ Actual_CoC_Median_Rent, data = data)
 summary(model)
 ```
 
-R cuadrada bajo por lo que teníamos razón diciendo que hay más cosas afectando a los homeless aparte de la renta. (?)
+En este modelo, el coeficiente de `Actual_CoC_Median_Rent` es significativamente positivo, sugiriendo que un incremento de \$1 en la renta media del condado está asociado con un aumento de aproximadamente 4.439 personas sin hogar, lo que indica una relación directa entre el costo de vivienda y la falta de vivienda. El alto nivel de significancia estadística (`p < 2e-16`) confirma la robustez de esta relación. Sin embargo, el bajo R-cuadrado de 0.0684 implica que este modelo solo explica un 6.84% de la variabilidad en la falta de vivienda, señalando que otros factores no considerados en el modelo también son relevantes.
+
+```{r}
+# Gráfica 1: Relación entre X:"Renta Media" y Y:"Cantidad Homeless"
+# Representación visual de la relación entre la renta media por Continuum of Care (CoC) 
+# y el número de personas sin hogar (en miles) para cada año entre 2013 y 2022. 
+
+ggplot(data = data, aes(x = Actual_CoC_Median_Rent, y = Overall_Homeless)) + 
+    geom_point(aes(color=as.factor(Year)),alpha = 0.5) +  # Ajusta la transparencia
+    geom_smooth(method = "lm", se = TRUE, aes(group=1)) +  # Añade intervalos de confianza
+    scale_y_log10()+
+    scale_x_log10()+
+  labs(title = "Relación entre Renta Media y cantidad de Homeless",
+       x = "Renta Media (en dólares)",
+       y = "Número de Homeless",
+       color = "Año",
+       caption = "Datos a nivel CoC, por año (2013-2022).")
+```
+* Puntos en color para representar diferentes años. Podemos observar que la renta es mayor en los años más recientes.
+* Línea de tendencia sugiere una correlación positiva entre la renta media y la cantidad de personas sin hogar.
+* Por la escala logaritmica, las diferencias visuales son más pronunciadas y la intensidad de la tendencia puede verse afectada, pero existe relación.
+
+2.  Regresión con todas las variables
 
 ```{r}
 # Multiple linear regression with several predictors
@@ -188,12 +182,14 @@ model2 <- lm(Overall_Homeless ~ Actual_CoC_Median_Rent +
                Poverty_Percentage + CoC_Civilian_Labor_Force +
                Unemployment_Rate + Vote_Percentage + 
                CoC_Poverty_Estimate_Age_0_17 + Birth_Rate + 
-               Death_Rate + International_Migration_Rate + Domestic_Migration_Rate, 
+               Death_Rate + International_Migration_Rate + Domestic_Migration_Rate,
              data = data)
 summary(model2)
 ```
 
-Regresión solo con variables significativas
+Este modelo más complejo incorpora varias variables adicionales y muestra que el costo de renta sigue siendo un predictor significativo del número de personas sin hogar, con un coeficiente aumentado a 5.45, lo cual es estadísticamente significativo (`p < 2e-16`). El incremento en R-cuadrado a 0.539 indica que el modelo ahora explica aproximadamente el 53.9% de la variabilidad en la falta de vivienda, mostrando una mejora considerable respecto al modelo simple. Esto demuestra la importancia de considerar múltiples factores como ingresos del hogar, tamaño de la población y la fuerza laboral en el análisis de la falta de vivienda.
+
+3.  Regresión con variables significativas
 
 ```{r}
 # Multiple linear regression with several predictors
@@ -207,7 +203,10 @@ model3 <- lm(Overall_Homeless ~ Actual_CoC_Median_Rent +
 summary(model3)
 ```
 
+Al ajustar el modelo solo con variables que mostraron significancia estadística, se mantiene un alto R-cuadrado de 0.539, lo que indica que las variables seleccionadas retienen su capacidad explicativa sin la carga de variables no significativas. El coeficiente para el costo de renta ajustada muestra un impacto de 5.25 personas sin hogar por cada aumento de \$1 en la renta, subrayando la persistente influencia significativa del costo de vivienda (`p < 2e-16`). La precisión del modelo, reflejada por un error estándar residual de 3310, y su ajuste mejorado resaltan la relevancia de estas variables en estudios de falta de vivienda.
+
 ### Variable Instrumental
+4.  Regresión simple
 
 ```{r}
 # First Stage: Regress Actual_CoC_Median_Rent on Previous_CoC_Neighbor_Median_Rent and other exogenous variables
@@ -221,15 +220,9 @@ second_stage_model <- lm(Overall_Homeless ~ fitted_Actual_CoC_Median_Rent,
 summary(second_stage_model)
 ```
 
-Los errores estandar están mal pero las betas son correctas, la U del modelo es diferente que la U de la étapa en la segunda etapa estoy utilizando la renta actual predicha entonces tiene otro error sumado
+Este modelo utiliza la renta actual predicha, ajustada por la renta de condados vecinos, como una variable instrumental para aislar el efecto del costo de la vivienda sobre la falta de vivienda. El coeficiente de `fitted_Actual_CoC_Median_Rent` es de 3.661, lo que indica que un aumento de \$1 en la renta media ajustada se asocia con un aumento de aproximadamente 3.661 en el número de personas sin hogar, con una significancia estadística extremadamente alta (`p < 2e-16`). Aunque el modelo tiene un R-cuadrado bajo (0.0366), esto sugiere que otras variables no incluidas podrían estar influyendo en la falta de vivienda. El modelo confirma la relevancia del costo de la vivienda pero también destaca la necesidad de considerar otros factores o de aplicar correcciones para los errores estándar para mejorar la estimación.
 
-me fijo más en como son las betas para ver el efecto sobre los homeless  
-bartik instruments. problemas en probar exogeneidad
-restricción de exclución. problema por que la periferia influye 
-
-si instrumento es exogeno, controles no deberían afectar
-controles deben pasar una prueba de balance, 
-pruebas placebo regresar controles y no debería haber efecto 
+5.  Regresión con todas las variables
 
 ```{r}
 # First Stage: Regress Actual_CoC_Median_Rent on Previous_CoC_Neighbor_Median_Rent and other exogenous variables
@@ -250,7 +243,9 @@ second_stage_model2 <- lm(Overall_Homeless ~ fitted_Actual_CoC_Median_Rent2 +
 summary(second_stage_model2)
 ```
 
-Variables instrumental solo con significativos
+En este enfoque, la renta media ajustada mediante variables instrumentales se combina con un amplio rango de controles socioeconómicos y demográficos. El coeficiente para `fitted_Actual_CoC_Median_Rent2` es 5.53, mostrando un fuerte impacto del costo de la vivienda sobre la falta de vivienda (`p < 2e-16`). El R-cuadrado de 0.525 indica que el modelo es capaz de explicar más de la mitad de la variabilidad en la falta de vivienda. Aunque los errores estándar podrían necesitar ajustes debido a la posible propagación del error de la primera etapa, la significancia estadística de la renta ajustada refuerza su importancia como factor clave. Los resultados también subrayan la complejidad del fenómeno, con múltiples variables contribuyendo significativamente.
+
+6.  Regresión con variables significativas
 
 ```{r}
 # First Stage: Regress Actual_CoC_Median_Rent on Previous_CoC_Neighbor_Median_Rent and other exogenous variables
@@ -273,11 +268,58 @@ second_stage_model3 <- lm(Overall_Homeless ~ fitted_Actual_CoC_Median_Rent3 +
 summary(second_stage_model3)
 ```
 
-```{r}
-#ivreg()
-```
-
+Este modelo optimiza el análisis al centrarse en variables significativas junto con la renta ajustada como variable instrumental. El coeficiente de `fitted_Actual_CoC_Median_Rent3` de 5.41 sugiere un vínculo robusto y significativo entre el costo de la vivienda y el número de personas sin hogar (`p < 2e-16`). El modelo mantiene un R-cuadrado importante de 0.524, demostrando que, a pesar de la simplificación, las variables seleccionadas explican una proporción considerable de la variabilidad en la falta de vivienda. La persistencia de la significancia estadística en las variables clave enfatiza su relevancia para entender y abordar la falta de vivienda. Aunque el análisis de errores estándar podría ser necesario para asegurar la precisión de las estimaciones, la consistencia en los resultados subraya la fiabilidad de las conclusiones.
 
 ### Regresión Poisson
+
+Ya que 'Overall_Homeless' es un conteo de personas sin hogar, suena sensato modelar esta variable con una regresión Poisson. Para ello, ajustamos un Modelo Lineal Generalizado.
+
+
+```{r}
+poisson_model <- glm(Overall_Homeless ~ Actual_CoC_Median_Rent + 
+                       Previous_CoC_Neighbor_Median_Rent + 
+                       CoC_AVG_Median_Household_Income + CoC_Population_Estimate +
+                       Poverty_Percentage + Unemployment_Rate + Party_Democrat +
+                       International_Migration_Rate + Domestic_Migration_Rate,
+                     family = poisson(link = "log"), data = data)
+summary(poisson_model)
+```
+
+* El coeficiente de la variable Actual_CoC_Median_Rent nos dice que existe una relación positiva con la variable objetivo. Por cada dolar de incremento, el logaritmo del número esperado de personas sin hogar aumenta 0.00143.
+* Contrario a las suposiciones previas, el coeficiente negativo de Previous_CoC_Neighbor_Median_Rent indica que al aumentar la renta mediana de los vecinos en el periodo anterior, disminuye el número de personas sin hogar. También hay que hacer notar que el valor del estimador es bastante bajo.
+* Podemos notar que las únicas variables que tienen una relación negativa con la objetivo es Previous_CoC_Neighbor_Median_Rent y CoC_AVG_Median_Household_Income.
+* Todos los coeficientes son estadísticamente significativos (p < 0.001), e indican (la mayoría) que son distintos de cero en la población. Así, tienen un efecto sobre nuestra variable dependiente.
+* El resutlado de Residual deviance nos interesa que sea cercana a cero. Muestra la desviación del modelo con todas las variables. Al ser demasiado grande nos genera dudas, pues la diferencia nos indica que el modelo sí puede explciar una parte de la variabilidad en los homeless, pero para nada es perfecta.
+* De la misma manera, nuestro Criterio de Akaike está muy elevado. Esto nos hace levantar sospechas.
+
+#### Cálculo de la Devianza
+```{r}
+# Cálculo de la Devianza
+deviance_null <- poisson_model$null.deviance
+deviance_model <- poisson_model$deviance
+deviance_r2 <- 1 - (deviance_model / deviance_null)
+
+# Imprimir resultados
+cat("Deviance R²: ", deviance_r2, "\n")
+```
+
+* El valor de la Devianza la utilizamos para evaluar la calidad de ajuste de nuestro modelo de regresión. 
+* El valor sugiere que el modelo explica aprox el 79.51% de la variabilidad en los conteos. Suena bastante bien; ajusta de manera buena a los datos. 
+* Pero se nos olvidó comprobar una cosa.
+
+```{r}
+# Calculamos la media y la varianza para buscar la llamada "sobredisposición".
+# La sobredisposición es cuando la varianza de los datos es mayor que la media.
+
+mean_response <- mean(data$Overall_Homeless)
+variance_response <- var(data$Overall_Homeless)
+
+cat("Media de Total de Homeless: ",mean_response)
+cat("\nVarianza de Total de Homeless: ",variance_response)
+```
+
+* Al tener una varianza abismalmente mayor que la media, entraríamos en el problema de contradecir la suposición principal de la utilización de un modelo Poisson: que la media y la varianza son iguales.
+* Así, el modelo Poisson no es el adecuado para el análisis de estos datos, pues podemos subestimar los errores de los estimadores. 
+* Tal vez por eso sonaban sospechosas los resultados previos.
 
 
