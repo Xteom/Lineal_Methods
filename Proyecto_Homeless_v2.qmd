@@ -1,5 +1,5 @@
 ---
-title: 'Análisis de Variable Instrumental en Homeless'
+title: 'Dinámicas de Renta y sinhogarismo urbano en EEUU'
 author: "Mateo, Sebastián, Genaro"
 published_date: "31/01/2024"
 echo: true #código
@@ -12,8 +12,6 @@ output:
 editor_options:
   chunk_output_type: console
 ---
-
-### Librerías
 
 ```{r, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, 
@@ -40,12 +38,10 @@ library(ggdag)
 
 ```
 
-# Dinámicas de Renta y sinhogarismo urbano
-
 ## Problema
 
 -   En numerosos condados de Estados Unidos, el incremento en los costos de vivienda ha sido una preocupación creciente.
-    -   Existe un impacto directo en la asequibilidad de la vivienda, y esto puede tener efectos en la cantidad de homeless en las ciudades.
+    -   Existe un *impacto* directo en la *asequibilidad de la vivienda*, y esto puede tener efectos en la cantidad de homeless en las ciudades.
     -   Es contraintuitivo pensar que en las ciudades de Estados Unidos con los más altos ingresos per cápita, como San Francisco y Nueva York, son las ciudades que más homeless tienen.
 -   La relación entre el costo de la vivienda y el número de personas sin hogar es compleja y puede estar confundida por variables omitidas, como el desempleo o las políticas locales implementadas.
 -   Identificar las dinámicas entre estos factores es crucial para desarrollar políticas efectivas de vivienda y programas de asistencia social.
@@ -113,7 +109,7 @@ Para fin de este proyecto, vamos a definir a nuestra variable instrumental como 
 
 El siguiente diagrama DAG muestra las relaciones entre las variables de análisis para conocer el efecto de la renta promedio de los hogares (**X**) sobre los conteos totales de personas sin hogar (**Y**).
 
-```{r}
+```{r, echo=FALSE}
 
 # Definimos el DAG
 my_dag <- dagify(
@@ -125,8 +121,7 @@ my_dag <- dagify(
 
 # Visualizar el DAG
 ggdag(my_dag, text = TRUE) +
-  labs(title = "DAG sobre nuestras variables de interés")
-  theme_minimal()
+  labs(title = "DAG sobre nuestras variables de interés") 
 ```
 
 Las variables representadas en el **DAG** son:
@@ -157,8 +152,7 @@ data <- read.csv("./metodos_lineales_data.csv")
 #data[is.na(data$Previous_CoC_Neighbor_Median_Rent), ]
 # los primeros periodos están en null por lo que para hacer la regresión filtramos
 data <- na.omit(data, cols = "Previous_CoC_Neighbor_Median_Rent")
-data
-#summary(lm(Overall_Homeless ~ Previous_CoC_Neighbor_Median_Rent, data = data))
+
 ```
 
 Las variables consideradas son:
@@ -232,7 +226,8 @@ Para empezar, ¿cómo se ven nuestros datos?
 
 ```{r}
 # Gráfica 1: Relación entre X:"Renta Media" y Y:"Cantidad Homeless"
-# Representación visual de la relación entre la renta media por Continuum of Care (CoC) 
+# Representación visual de la relación entre la renta media
+# por Continuum of Care (CoC) 
 # y el número de personas sin hogar (en miles) para cada año entre 2013 y 2022. 
 
 ggplot(data = data, aes(x = Actual_CoC_Median_Rent, y = Overall_Homeless)) + 
@@ -299,12 +294,16 @@ Al ajustar el modelo solo con variables que mostraron significancia estadística
 #### 4. Regresión simple
 
 ```{r}
-# First Stage: Regress Actual_CoC_Median_Rent on Previous_CoC_Neighbor_Median_Rent and other exogenous variables
+# First Stage: Regress Actual_CoC_Median_Rent on
+# Previous_CoC_Neighbor_Median_Rent and other 
+# exogenous variables
 first_stage_model <- lm(Actual_CoC_Median_Rent ~ Previous_CoC_Neighbor_Median_Rent, 
                         data = data)
 data$fitted_Actual_CoC_Median_Rent <- fitted(first_stage_model)
 
-# Second Stage: Regress Overall_Homeless on the fitted values from the first stage and other exogenous variables
+# Second Stage: Regress Overall_Homeless on the fitted values
+# from the first stage 
+# and other exogenous variables
 second_stage_model <- lm(Overall_Homeless ~ fitted_Actual_CoC_Median_Rent, 
                          data = data)
 summary(second_stage_model)
@@ -315,7 +314,9 @@ Este modelo utiliza la renta actual predicha, ajustada por la renta de condados 
 #### 5. Regresión con todas las variables
 
 ```{r}
-# First Stage: Regress Actual_CoC_Median_Rent on Previous_CoC_Neighbor_Median_Rent and other exogenous variables
+# First Stage: Regress Actual_CoC_Median_Rent on
+#Previous_CoC_Neighbor_Median_Rent and other 
+# exogenous variables
 first_stage_model2 <- lm(Actual_CoC_Median_Rent ~ Previous_CoC_Neighbor_Median_Rent + 
                         CoC_AVG_Median_Household_Income + CoC_Population_Estimate + 
                         Poverty_Percentage + CoC_Civilian_Labor_Force + 
@@ -327,9 +328,12 @@ data$fitted_Actual_CoC_Median_Rent2 <- fitted(first_stage_model2)
 
 # Second Stage: Regress Overall_Homeless on the fitted values from the first stage and other exogenous variables
 second_stage_model2 <- lm(Overall_Homeless ~ fitted_Actual_CoC_Median_Rent2 +
-                         CoC_AVG_Median_Household_Income + CoC_Population_Estimate + Poverty_Percentage + 
-                         CoC_Civilian_Labor_Force + Unemployment_Rate + Vote_Percentage + CoC_Poverty_Estimate_Age_0_17 + 
-                         Birth_Rate + Death_Rate + International_Migration_Rate + Domestic_Migration_Rate, data = data)
+                         CoC_AVG_Median_Household_Income + CoC_Population_Estimate + 
+                        Poverty_Percentage + 
+                         CoC_Civilian_Labor_Force + Unemployment_Rate + 
+                          Vote_Percentage + CoC_Poverty_Estimate_Age_0_17 + 
+                         Birth_Rate + Death_Rate + International_Migration_Rate + 
+                          Domestic_Migration_Rate, data = data)
 summary(second_stage_model2)
 ```
 
@@ -338,7 +342,9 @@ En este enfoque, la renta media ajustada mediante variables instrumentales se co
 #### 6. Regresión con variables significativas
 
 ```{r}
-# First Stage: Regress Actual_CoC_Median_Rent on Previous_CoC_Neighbor_Median_Rent and other exogenous variables
+# First Stage: Regress Actual_CoC_Median_Rent on
+#Previous_CoC_Neighbor_Median_Rent and other 
+# exogenous variables
 first_stage_model3 <- lm(Actual_CoC_Median_Rent ~ Previous_CoC_Neighbor_Median_Rent + 
                         CoC_AVG_Median_Household_Income + CoC_Population_Estimate + 
                         CoC_Civilian_Labor_Force + 
@@ -377,7 +383,7 @@ summary(poisson_model)
 ```
 
 -   El coeficiente de la variable Actual_CoC_Median_Rent nos dice que existe una relación positiva con la variable objetivo. Por cada dolar de incremento, el logaritmo del número esperado de personas sin hogar aumenta 0.00143.
--   Contrario a las suposiciones previas, el coeficiente negativo de Previous_CoC_Neighbor_Median_Rent indica que al aumentar la renta mediana de los vecinos en el periodo anterior, disminuye el número de personas sin hogar. También hay que hacer notar que el valor del estimador es bastante bajo.
+-   Contrario a las suposiciones previas, el coeficiente negativo de Previous_CoC_Neighbor_ Median_Rent indica que al aumentar la renta mediana de los vecinos en el periodo anterior, disminuye el número de personas sin hogar. También hay que hacer notar que el valor del estimador es bastante bajo.
 -   Podemos notar que las únicas variables que tienen una relación negativa con la objetivo es Previous_CoC_Neighbor_Median_Rent y CoC_AVG_Median_Household_Income.
 -   Todos los coeficientes son estadísticamente significativos (p \< 0.001), e indican (la mayoría) que son distintos de cero en la población. Así, tienen un efecto sobre nuestra variable dependiente.
 -   El resutlado de Residual Deviance nos interesa que sea cercana a cero. Muestra la desviación del modelo con todas las variables. Al ser demasiado grande nos genera dudas
@@ -426,7 +432,7 @@ dispersion_test
 -   Así, el modelo Poisson no es el adecuado para el análisis de estos datos, pues podemos subestimar los errores de los estimadores.
 -   Tal vez por eso sonaban sospechosas los resultados previos.
 
-#### Modelo Binomial
+#### Modelo con Binomial Negativa
 
 -   Este modelo también es utilizado para datos que representan conteos (entre otras cosas). Este modelo permite que la varianza sea mayor que la media, por lo que resulta ser un modelo más flexible.
 -   Además, es recomendado cuando los datos presentan la sobredisposición.
@@ -460,14 +466,15 @@ cat("Devianza: ", deviance_r2, "\n")
 
 #### Modelo con Transformaciones Logarítmicas
 
-- Debido al despliegue de la gráfica de la relación entre la variable dependiente `Overall_Homeless` y la variable explicativa principal `Actual_CoC_Median_Rent`, pensamos que podría ser correcta una transformación logarítmica de algunos datos para mejorar nuestro ajuste.
+-   Debido al despliegue de la gráfica de la relación entre la variable dependiente `Overall_Homeless` y la variable explicativa principal `Actual_CoC_Median_Rent`, pensamos que podría ser correcta una transformación logarítmica de algunos datos para mejorar nuestro ajuste.
 
 Podemos ver, por ejemplo, que si graficamos la variable `CoC_Population_Estimate` versus nuestra variable objetivo, y que si aplicamos una transformación logarítmica, la relación es mucho más clara a que si no hiciéramos la transformación.
 
 Sin la transformación:
 
 ```{r}
-ggplot(data = data, aes(x = CoC_Population_Estimate, y = Overall_Homeless)) +
+ggplot(data = data, aes(x = CoC_Population_Estimate, 
+                        y = Overall_Homeless)) +
   geom_point(alpha = 0.5) +  # Ajusta la transparencia
   geom_smooth(method = "lm", se = TRUE) +  # Añade intervalos de confianza
   labs(title = "Relación entre Población total y cantidad de Homeless (sin transformación)",
@@ -480,7 +487,8 @@ ggplot(data = data, aes(x = CoC_Population_Estimate, y = Overall_Homeless)) +
 Con la transformación:
 
 ```{r}
-ggplot(data = data, aes(x = log(CoC_Population_Estimate), y = log(Overall_Homeless))) +
+ggplot(data = data, aes(x = log(CoC_Population_Estimate), 
+                        y = log(Overall_Homeless))) +
   geom_point(alpha = 0.5) +  # Ajusta la transparencia
   geom_smooth(method = "lm", se = TRUE) +  # Añade intervalos de confianza
   labs(title = "Relación entre Población total y cantidad de Homeless (transformación Log)",
@@ -490,11 +498,12 @@ ggplot(data = data, aes(x = log(CoC_Population_Estimate), y = log(Overall_Homele
        caption = "Datos a nivel CoC, por año (2013-2022).")
 ```
 
-- Vamos utilizar un GLM con la familia gaussiana y una función de enlace logarítmico. 
-- Esperamos que este tipo de transformaciones mejoren la linealidad de los datos. 
+-   Vamos utilizar un GLM con la familia gaussiana y una función de enlace logarítmico.
+-   Esperamos que este tipo de transformaciones mejoren la linealidad de los datos.
 
 ```{r}
-glm_model <- glm(log(Overall_Homeless) ~ log(Actual_CoC_Median_Rent) + Previous_CoC_Neighbor_Median_Rent +
+glm_model <- glm(log(Overall_Homeless) ~ log(Actual_CoC_Median_Rent) + 
+                   Previous_CoC_Neighbor_Median_Rent +
                    CoC_AVG_Median_Household_Income + log(CoC_Population_Estimate) +
                    Poverty_Percentage + Unemployment_Rate + Party_Democrat +
                    International_Migration_Rate + Domestic_Migration_Rate,
@@ -515,14 +524,54 @@ deviance_r2 <- 1 - (deviance_model / deviance_null)
 cat("Devianza: ", deviance_r2, "\n")
 ```
 
+-   Para este caso particular, realizamos la transformación logarítmica de las variables `Overall_Homeless`, `Actual_CoC_Median_Rent` y `CoC_Population_Estimate`.
+-   Podemos observar que el valor del criterio de Akaike (7,275) todavía fue menor que el valor de nuestro modelo de Binomial Negativa (51,894). No digamos nada acerca de la Devianza.
+-   Así, esta es una buena noticia, pues querría decir que el modelo puede capturar mejor la relación entre las variables.
 
-- Para este caso particular, realizamos la transformación logarítmica de las variables `Overall_Homeless`, `Actual_CoC_Median_Rent` y `CoC_Population_Estimate`. 
-- Podemos observar que el valor del criterio de Akaike (7,275) todavía fue menor que el valor de nuestro modelo de Binomial Negativa (51,894). No digamos nada acerca de la Devianza.
-- Así, esta es una buena noticia, pues querría decir que el modelo puede capturar mejor la relación entre las variables. 
+#### Criterios de Akaike
+
+```{r, echo=FALSE}
+aic_value1 <- AIC(model)
+cat("AIC Modelo 1 (simple): ", aic_value1, "\n")
+
+aic_value2 <- AIC(model2)
+cat("AIC: Modelo 2 (con todas las variables)", aic_value2, "\n")
+
+aic_value3 <- AIC(model3)
+cat("AIC: Modelo 3 (variables significativas)", aic_value3, "\n")
+
+
+aic_value4 <- AIC(second_stage_model)
+cat("AIC: Modelo IV 1", aic_value4, "\n")
+
+aic_value5 <- AIC(second_stage_model2)
+cat("AIC:  Modelo IV 2", aic_value5, "\n")
+
+aic_value6 <- AIC(second_stage_model3)
+cat("AIC:  Modelo IV 3", aic_value6, "\n")
+
+
+aic_value7 <- AIC(poisson_model)
+cat("AIC: Modelo Poisson", aic_value7, "\n")
+
+aic_value8 <- AIC(nb_model)
+cat("AIC: Modelo BinNeg", aic_value8, "\n")
+
+aic_value9 <- AIC(glm_model)
+cat("AIC: Modelo Logarítmico", aic_value9,"\n")
+```
+
+#### Análisis de Residuos del último modelo.
+
+```{r}
+plot(resid(glm_model))
+```
 
 ## Conclusiones
 
--   Hola
+-   Los primeros modelos lineales si pueden explicar una parte de los datos pero se ven limitados. Por lo tanto nuestra hipótesis parece ser correcta.
+-   Con la variable instumental podemos ver que si hay otra variable que está afectando a nustra $X$. 
+-   Los mejores modelos se obtuvieron con glm debido al comportamiento no lineal de nuestros datos.
 
 ## Bibliografía
 
